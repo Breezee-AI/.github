@@ -1,0 +1,60 @@
+name: Feature
+description: A user can do something afterwards they could not do before.
+type: Feature
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **If nobody can state the outcome, it is not ready to be filed.** A feature whose value is
+        described as "we should have X" is a preference; one described as "a user can then do Y"
+        is work.
+
+        `Eligibility` and `Risk` are fields, set after the issue is created. Severity is not — a
+        feature does not have one. The files a run may touch go in a fenced `surface` block in the
+        body, not a field.
+
+        **Multi-phase work is this issue with sub-issues**, one per phase. There is no separate
+        plan type: GitHub renders the rollup on the parent, which is what a tracking table used to
+        do by hand.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Executive summary
+      description: >
+        For the owner, who decides on this and the title alone. Under 80 words, in plain words: what it is, why it matters, and what the owner is asked to do. No code names, file paths or identifiers. The detail goes below.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: What a user can do afterwards that they cannot do now. One sentence, from their side of the screen.
+      placeholder: "A customer can download all of a month's conversations in one file."
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: Today
+      description: >
+        What they do instead. If the answer is nothing — if they simply cannot — say so, because
+        it changes the case entirely.
+    validations:
+      required: true
+  - type: textarea
+    id: signal
+    attributes:
+      label: Signal
+      description: >
+        How we will know it worked, after it ships. "It ships" is not a signal. If nothing would
+        be observably different a week later, say that — it is worth knowing before the work
+        starts rather than after.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Out of scope
+      description: Anything a reasonable run might absorb into this and should not. Optional, and worth a line whenever the surface is wide.
+    validations:
+      required: false

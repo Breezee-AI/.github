@@ -1,0 +1,72 @@
+name: Defect
+description: Something already built does not do what it says.
+type: Defect
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One finding per issue.
+
+        **The title and the first field are for a human** — one who was not in the room when the
+        finding was made. If the title only makes sense to whoever filed it, it is wrong.
+
+        **Three things are fields, not sections here**, because the harness reads them to act:
+        `Eligibility`, `Risk` and `Severity`. Set them after the issue is created. The files a run
+        may touch go in a fenced `surface` block in the body, not a field.
+        An agent may **suggest** an eligibility and must never apply one — a worker judging its
+        own finding fit for unattended pickup is the same failure as judging its own test
+        sufficient. No value means not eligible.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Executive summary
+      description: >
+        For the owner, who decides on this and the title alone. Under 80 words, in plain words: what it is, why it matters, and what the owner is asked to do. No code names, file paths or identifiers. The detail goes below.
+    validations:
+      required: true
+  - type: textarea
+    id: symptom
+    attributes:
+      label: Symptom
+      description: >
+        What someone sees happen. Write it so a non-engineer would recognise it: no file paths, no
+        class names, no identifiers.
+      placeholder: "Export last month's conversations and the last day of the month is missing from the file."
+    validations:
+      required: true
+  - type: textarea
+    id: cause
+    attributes:
+      label: Cause
+      description: What is technically wrong. The defect, not the symptom. This is the field an agent works from.
+      placeholder: "The export's date filter ends at midnight in the server's time zone, not the customer's, so the final day falls outside it."
+    validations:
+      required: true
+  - type: textarea
+    id: consequence
+    attributes:
+      label: Consequence
+      description: >
+        What breaks if this is never fixed. "It is inconsistent" is not a consequence; "a `size-6`
+        override silently does nothing" is.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: The command that shows it, and what it printed. A claim without a re-runnable command is a lead, not a finding.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: pinned
+    attributes:
+      label: Pinned behaviour
+      description: >
+        The test that asserts TODAY's behaviour, so the suite stays green while the defect is open
+        — which means fixing it turns that test red, deliberately, and the fix and the test change
+        together. If nothing covers it either way, say "Nothing tests this either way — a fix could
+        silently come back", which is itself a finding.
+    validations:
+      required: false
