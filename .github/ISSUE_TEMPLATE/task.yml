@@ -1,0 +1,37 @@
+name: Task
+description: Work with no user-visible change — a refactor, a dependency, a gate.
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This form is deliberately thin.** A task is a title, a summary, what changes, and the
+        fields the harness reads — `Eligibility` and `Risk`, set after the issue is created — plus a fenced `surface`
+        block in the body naming the files a run may touch.
+
+        **If it needs more structure than this, it is not a task.** It is a defect whose symptom
+        nobody wrote down, or a feature whose outcome nobody stated. Use those forms instead;
+        leaving this one bare is what makes the difference visible rather than letting it hide
+        behind half-filled sections.
+
+        **An audit is a task.** It answers one question, not a topic — a topic never finishes, and
+        neither does an audit of one. Each confirmed finding becomes its own issue; this one
+        carries the question and the reasoning.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Executive summary
+      description: >
+        For the owner, who decides on this and the title alone. Under 80 words, in plain words: what it is, why it matters, and what the owner is asked to do. No code names, file paths or identifiers. The detail goes below.
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: What changes, and why now
+      description: >
+        Mechanically what is different afterwards. And why it is worth doing today — a task with
+        no answer to that is a task that can wait, which is worth finding out before a run starts
+        rather than during one.
+    validations:
+      required: true

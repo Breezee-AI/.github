@@ -1,0 +1,142 @@
+name: Secret scan
+
+# A reusable workflow: gitleaks over the commits a push, pull request or
+# merge-queue run adds, never the whole history.
+#
+# A copy of Breezee-AI/packages/.github/workflows/secret-scan.yml (see
+# secret-scan.yml here for why). Call it from this repository:
+#
+#   jobs:
+#     secret-scan:
+#       uses: ./.github/workflows/gitleaks.yml
+#
+# Built from dashboard/.github/workflows/secret-scan.yml, keeping its
+# safeguards: a pinned gitleaks with its checksum checked, a range worked out
+# per event, a refusal to scan an empty range, and redacted output.
+on:
+  workflow_call:
+    inputs:
+      integration-branch:
+        description: >-
+          The branch new branches are cut from. The first push of a new branch
+          is scanned from where it left this branch. Empty means the
+          repository's default branch.
+        type: string
+        required: false
+        default: ""
+      config:
+        description: >-
+          Path to a gitleaks config in the calling repository. Used if the file
+          exists; otherwise gitleaks' built-in rules apply.
+        type: string
+        required: false
+        default: .gitleaks.toml
+
+jobs:
+  gitleaks:
+    name: Gitleaks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    # Cancel a superseded run for the same ref. The scan is read-only. The
+    # group names the caller's workflow, so it cannot collide with a group the
+    # caller sets for itself.
+    concurrency:
+      group: secret-scan-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history, so the merge-base of a new branch can be found.
+          fetch-depth: 0
+          # The scan is read-only: do not leave the token in the git config.
+          persist-credentials: false
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          GITLEAKS_VERSION=8.30.1
+          GITLEAKS_SHA256=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          curl -sSfL \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            -o "$RUNNER_TEMP/gitleaks.tgz"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/gitleaks.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gitleaks.tgz" -C "$RUNNER_TEMP" gitleaks
+          sudo install "$RUNNER_TEMP/gitleaks" /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Determine scan range
+        id: range
+        # Event fields and inputs reach the script through `env:`, never
+        # interpolated into it, so the shell never reads them as code.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_AFTER_SHA: ${{ github.event.after }}
+          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          MERGE_GROUP_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+          INTEGRATION_BRANCH: ${{ inputs.integration-branch || github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          ZERO_SHA="0000000000000000000000000000000000000000"
+          case "$EVENT_NAME" in
+            pull_request)
+              BASE="$PR_BASE_SHA"
+              HEAD="$PR_HEAD_SHA"
+              ;;
+            # A merge-queue run has no pull request and no before/after: the
+            # batch's ends are on the merge_group payload. Without this branch
+            # both would be empty and the range would collapse to `..`, which
+            # passes while scanning nothing worth scanning.
+            merge_group)
+              BASE="$MERGE_GROUP_BASE_SHA"
+              HEAD="$MERGE_GROUP_HEAD_SHA"
+              ;;
+            push)
+              BASE="$PUSH_BEFORE_SHA"
+              HEAD="$PUSH_AFTER_SHA"
+              # The first push of a new branch has no previous commit. Scan from
+              # where it left the integration branch, so only its own commits
+              # are read; any other branch would drag in commits it never made.
+              if [ "$BASE" = "$ZERO_SHA" ]; then
+                if [ -z "$INTEGRATION_BRANCH" ]; then
+                  echo "::error::No integration branch: set the integration-branch input."
+                  exit 1
+                fi
+                BASE="$(git merge-base "origin/$INTEGRATION_BRANCH" "$HEAD" 2>/dev/null || git rev-parse "origin/$INTEGRATION_BRANCH")"
+              fi
+              ;;
+            *)
+              BASE=""
+              HEAD=""
+              ;;
+          esac
+          # FAIL, DO NOT SCAN NOTHING. A missing end means an event this step
+          # has not been taught, and an empty range is the shape that passes a
+          # secret scan without reading a single commit.
+          if [ -z "$BASE" ] || [ -z "$HEAD" ]; then
+            echo "::error::Cannot determine a scan range for event '$EVENT_NAME' (base='$BASE' head='$HEAD'). Refusing to scan an empty range."
+            exit 1
+          fi
+          echo "base=$BASE" >> "$GITHUB_OUTPUT"
+          echo "head=$HEAD" >> "$GITHUB_OUTPUT"
+          echo "Scanning $BASE..$HEAD"
+
+      - name: Scan for secrets
+        env:
+          BASE: ${{ steps.range.outputs.base }}
+          HEAD: ${{ steps.range.outputs.head }}
+          CONFIG: ${{ inputs.config }}
+        run: |
+          set -euo pipefail
+          args=(git --log-opts="--no-merges ${BASE}..${HEAD}" --no-banner --redact)
+          if [ -n "$CONFIG" ] && [ -f "$CONFIG" ]; then
+            echo "Using the gitleaks config at $CONFIG"
+            args+=(--config "$CONFIG")
+          else
+            echo "No gitleaks config at '$CONFIG'; using gitleaks' built-in rules"
+          fi
+          gitleaks "${args[@]}"

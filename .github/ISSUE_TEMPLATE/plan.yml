@@ -1,0 +1,54 @@
+name: Plan
+description: Work bigger than one pull request. This issue holds the plan; its sub-issues hold what is done.
+type: Task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This issue is the plan and its state.** The owner's comment approves the plan; a design
+        is a Claude artifact, linked here with what settled. No plan is shipped as files.
+
+        **Phases are sub-issues, not checkboxes.** File one per phase and link it to this issue;
+        GitHub then renders "3 of 7 complete" on this card, which is what a hand-maintained
+        task list was approximating. A checkbox nobody ticks reads as undelivered work and gets
+        done twice.
+
+        It is filed as a `Task`: there is no `Plan` issue type, deliberately. A type says what kind
+        of work something is, and sub-issues say how big.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Executive summary
+      description: >
+        For the owner, who approves on this alone. Under 80 words, in plain words: what the plan delivers, why, and what the owner is asked to approve. The plan itself goes in Plan below.
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Plan
+      description: >
+        The plan itself, and the audit behind it if there is one: the phases, each with its
+        executable acceptance.
+    validations:
+      required: true
+  - type: textarea
+    id: eligibility
+    attributes:
+      label: Eligibility per phase
+      description: >
+        A plan is categorised per phase, not per plan. Name any phase that is human-only and why.
+        Each phase sub-issue carries its own `Eligibility` field; this is the summary that says
+        the split was thought about at all.
+      placeholder: "Phases 2–4 agent-ready. Phase 5 human-only: it decides what a rule should say."
+    validations:
+      required: true
+  - type: textarea
+    id: blocked
+    attributes:
+      label: Open owner decisions
+      description: >
+        Anything the plan is waiting on. An agent may not answer these — if one blocks a live run,
+        it belongs in a `Decision` sub-issue rather than here.
+    validations:
+      required: false
